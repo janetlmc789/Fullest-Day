@@ -1,0 +1,1364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A personal daily planner: today's to-dos, ideas, routines and progress.">
+<meta name="theme-color" content="#F4EFE4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<script src="./support.js"></script>
+<script src="./register-sw.js" defer></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./fonts/fonts.css">
+<style>
+html, body { margin: 0; background: #F4EFE4; }
+* { box-sizing: border-box; }
+::placeholder { color: #7A7062; opacity: 1; }
+.in, .ghost, .bare, .ta { font: inherit; }
+.in { background: #FFFEFA; border: 1px solid #CFC5B0; border-radius: 10px; color: #211E1A; }
+.in:focus, .ghost:focus, .ta:focus { outline: 2px solid #A8461F; outline-offset: 1px; }
+.ghost:hover { background: #FFFEFA !important; border-color: #DCD3C0 !important; }
+.field-wrap:focus-within { border-color: #A8461F !important; box-shadow: 0 0 0 4px rgba(168, 70, 31, 0.18); }
+.btn:hover { filter: brightness(1.1); }
+.btn:focus-visible, .link:focus-visible, .tab:focus-visible, .icon-btn:focus-visible { outline: 2px solid #211E1A; outline-offset: 2px; }
+.link:hover { color: #7C3216 !important; }
+.icon-btn:hover { background: #EFE8D8 !important; color: #A8461F !important; }
+.tab:not([aria-current="page"]):hover { background: #EBE4D3 !important; }
+.btn-outline:hover { background: #EFE8D8 !important; }
+.btn-outline:focus-visible, .chip:focus-visible { outline: 2px solid #211E1A; outline-offset: 2px; }
+.chip[aria-pressed="false"]:hover { background: #EBE4D3 !important; }
+select.in { cursor: pointer; }
+.infobtn:hover ~ .tip, .infobtn:focus-visible ~ .tip { display: block !important; }
+.grip:active { cursor: grabbing !important; }
+.row:hover .grip { color: #211E1A !important; }
+.saved-pop { animation: savedPop 0.18s ease-out; }
+@keyframes savedPop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .saved-pop { animation: none; } }
+</style>
+</helmet>
+
+<div style="width: 100%; min-height: 100vh; background: #F4EFE4; color: #211E1A; font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.4;">
+<div style="max-width: 1120px; margin: 0 auto; padding: 40px 24px 96px; display: flex; flex-direction: column; gap: 28px;">
+
+<!-- Header -->
+<header style="display: flex; flex-direction: column; gap: 4px;">
+<sc-if value="{{ hasEyebrow }}" hint-placeholder-val="{{ false }}">
+<div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #62594D;">{{ pageEyebrow }}</div>
+</sc-if>
+<h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 48px; line-height: 1.05; letter-spacing: -0.01em;">{{ pageTitle }}</h1>
+<sc-if value="{{ hasSubtitle }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top: 4px; font-family: 'Newsreader', Georgia, serif; font-size: 24px; color: #62594D; position: relative">{{ pageSubtitle }}</div>
+</sc-if>
+</header>
+
+<!-- Navigation + save status -->
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;">
+<nav aria-label="Pages" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="3">
+<button type="button" class="tab" aria-current="{{ tab.current }}" onClick="{{ tab.go }}" style="height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid {{ tab.border }}; background: {{ tab.bg }}; color: {{ tab.fg }}; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">{{ tab.label }}</button>
+</sc-for>
+</nav>
+<div role="status" aria-live="polite" style="min-width: 220px; min-height: 24px; text-align: right; font-size: 14px; font-weight: 600; color: {{ saveColor }};">
+<sc-if value="{{ showSaveMsg }}" hint-placeholder-val="{{ false }}"><span class="saved-pop">{{ saveMsg }}</span></sc-if>
+</div>
+</div>
+
+<!-- ============ TODAY ============ -->
+<sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 24px;">
+
+<!-- Quick capture -->
+<section aria-label="Quick idea capture" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<label for="cap-today" style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #62594D;">Quick capture</label>
+<div class="field-wrap" style="margin-top: 10px; display: flex; align-items: center; height: 72px; padding: 0 20px; background: #FFFEFA; border: 1.5px solid #211E1A; border-radius: 16px;">
+<input id="cap-today" class="bare" type="text" value="{{ capture.value }}" onChange="{{ capture.onChange }}" onKeyDown="{{ capture.onKey }}" placeholder="What’s on your mind?" autoComplete="off" style="flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent; color: #211E1A; font-family: 'Newsreader', Georgia, serif; font-size: 28px;">
+</div>
+<div style="margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;">
+<span style="font-size: 13px; color: #62594D;">Save as</span>
+<div role="group" aria-label="Save as" style="display: flex; gap: 8px;">
+<sc-for list="{{ kinds }}" as="k" hint-placeholder-count="2">
+<button type="button" class="chip" aria-pressed="{{ k.pressed }}" onClick="{{ k.pick }}" style="height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid {{ k.border }}; background: {{ k.bg }}; color: {{ k.fg }}; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{ k.label }}</button>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #62594D;">{{ captureHint }}</span>
+</div>
+</section>
+
+<!-- Suggested for today: ideas waiting to be planned -->
+<section aria-label="Suggested for today" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px;">Suggested for today</h2>
+<span style="font-size: 14px; color: #62594D;">{{ sugCount }}</span>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">Pulled from your Ideas. The ones waiting longest come first. Add what you want to do today, or plan it for tomorrow. Tap the i to see why it is here.</p>
+<sc-if value="{{ sugEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 16px 4px 4px; font-size: 15px; color: #62594D;">No ideas waiting. Type one into Quick capture above, or open <button type="button" class="link" onClick="{{ goIdeas }}" style="padding: 0; border: none; background: none; color: #A8461F; font: inherit; font-size: 15px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Ideas</button>.</div>
+</sc-if>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ suggestions }}" as="item" hint-placeholder-count="3">
+<li style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; border-top: 1px solid #E6DFCF;">
+<textarea class="ghost ta" rows="1" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" placeholder="Untitled" aria-label="Idea" style="flex: 1 1 240px; min-width: 0; min-height: 48px; margin-top: 4px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #211E1A; font-family: 'Newsreader', Georgia, serif; font-size: 21px; font-weight: 600; line-height: 28px; resize: none; overflow: hidden; field-sizing: content;"></textarea>
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: #EFE8D8; color: #211E1A; font-size: 12px; font-weight: 600;">{{ item.tag }}</span>
+<button type="button" class="icon-btn infobtn" aria-label="Why is this here?" aria-expanded="{{ item.tipOpen }}" onClick="{{ item.tipToggle }}" onBlur="{{ item.tipClose }}" style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: #62594D; cursor: pointer;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 7.6h.01"></path></svg>
+</button>
+<div class="tip" style="display: {{ item.tipDisplay }}; position: absolute; z-index: 30; left: 12px; right: 12px; top: calc(100% - 8px); padding: 14px 16px; border-radius: 12px; background: #211E1A; color: #FBF8F1; font-size: 14px; line-height: 1.5; white-space: pre-line; box-shadow: 0 8px 24px rgba(33, 30, 26, 0.28);">{{ item.why }}</div>
+<div style="flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 12px 10px;">
+<button type="button" class="btn" onClick="{{ item.add }}" style="height: 36px; padding: 0 16px; border: none; border-radius: 10px; background: #A8461F; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Add to today</button>
+<button type="button" class="btn-outline" onClick="{{ item.later }}" style="height: 36px; padding: 0 14px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Do tomorrow</button>
+<button type="button" class="btn-outline" onClick="{{ item.swap }}" style="height: 36px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"></path></svg>{{ item.swapLabel }}</button>
+</div>
+</li>
+</sc-for>
+</ul>
+<sc-if value="{{ sugMore }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ sugToggle }}" style="height: 44px; padding: 0 4px; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">{{ sugToggleLabel }}</button>
+</sc-if>
+</section>
+
+<!-- Today’s to-do: Work and Personal, pulled from the Idea Dump -->
+<section aria-label="Today’s to-do">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 28px;">Today’s To-do</h2>
+<span style="font-size: 14px; color: #62594D;">{{ todayCountLabel }}</span>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">Bring tasks in from Suggested for today, or capture them above. Tap the i to see why something is here. You decide what waits until tomorrow.</p>
+<sc-if value="{{ hasTodayNote }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 4px 0; font-size: 15px; color: #3B6644; font-weight: 600;">{{ todayNote }}</div>
+</sc-if>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 24px; margin-top: 16px; align-items: start;">
+<sc-for list="{{ todayGroups }}" as="grp" hint-placeholder-count="2">
+<div style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 20px 24px 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px;">
+<h3 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">{{ grp.title }}</h3>
+<span style="font-size: 14px; color: #62594D;">{{ grp.countLabel }}</span>
+</div>
+<sc-if value="{{ grp.isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 6px 0 10px; font-size: 15px; color: #62594D;">{{ grp.emptyText }}</div>
+</sc-if>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.open }}" as="item" hint-placeholder-count="3">
+<li style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-height: 56px; border-top: 1px solid #E6DFCF;">
+<label style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<input type="checkbox" checked="{{ item.done }}" onChange="{{ item.toggle }}" aria-label="Mark done" style="width: 22px; height: 22px; margin: 0; accent-color: #3B6644; cursor: pointer;">
+</label>
+<textarea class="ghost ta" rows="1" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" placeholder="Untitled" aria-label="To do" style="flex: 1 1 150px; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #211E1A; font-size: 17px; line-height: 24px; resize: none; overflow: hidden; field-sizing: content;"></textarea>
+<button type="button" class="icon-btn infobtn" aria-label="Why is this here?" aria-expanded="{{ item.tipOpen }}" onClick="{{ item.tipToggle }}" onBlur="{{ item.tipClose }}" style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: #62594D; cursor: pointer;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 7.6h.01"></path></svg>
+</button>
+<div class="tip" style="display: {{ item.tipDisplay }}; position: absolute; z-index: 30; left: 8px; right: 8px; top: calc(100% - 8px); padding: 14px 16px; border-radius: 12px; background: #211E1A; color: #FBF8F1; font-size: 14px; line-height: 1.5; white-space: pre-line; box-shadow: 0 8px 24px rgba(33, 30, 26, 0.28);">{{ item.why }}</div>
+<div style="flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 10px 48px;">
+<button type="button" class="btn-outline" onClick="{{ item.move }}" style="height: 36px; padding: 0 14px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">{{ item.moveLabel }}</button>
+<button type="button" class="btn-outline" onClick="{{ item.swap }}" style="height: 36px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"></path></svg>{{ item.swapLabel }}</button>
+</div>
+</li>
+</sc-for>
+</ul>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.done }}" as="item" hint-placeholder-count="0">
+<li style="display: flex; align-items: center; min-height: 52px; border-top: 1px solid #E6DFCF;">
+<label style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<input type="checkbox" checked="{{ item.done }}" onChange="{{ item.toggle }}" aria-label="Mark not done" style="width: 22px; height: 22px; margin: 0; accent-color: #3B6644; cursor: pointer;">
+</label>
+<textarea class="ghost ta" rows="1" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" aria-label="Completed to do" style="flex: 1; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #62594D; font-size: 17px; line-height: 24px; text-decoration: line-through; resize: none; overflow: hidden; field-sizing: content;"></textarea>
+</li>
+</sc-for>
+</ul>
+</div>
+</sc-for>
+</div>
+</section>
+
+<!-- Tomorrow: Work and Personal -->
+<sc-if value="{{ hasTomorrow }}" hint-placeholder-val="{{ false }}">
+<section aria-label="Tomorrow">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 28px;">Tomorrow</h2>
+<span style="font-family: 'Newsreader', Georgia, serif; font-size: 20px; color: #62594D;">{{ tomorrowDate }}</span>
+</div>
+<span style="font-size: 14px; color: #62594D;">{{ tomorrowCountLabel }}</span>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">You moved these to tomorrow. They join today’s list when tomorrow arrives.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 24px; margin-top: 16px; align-items: start;">
+<sc-for list="{{ tomorrowGroups }}" as="grp" hint-placeholder-count="2">
+<div style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 20px 24px 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px;">
+<h3 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">{{ grp.title }}</h3>
+<span style="font-size: 14px; color: #62594D;">{{ grp.countLabel }}</span>
+</div>
+<sc-if value="{{ grp.isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 6px 0 10px; font-size: 15px; color: #62594D;">{{ grp.emptyText }}</div>
+</sc-if>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.open }}" as="item" hint-placeholder-count="2">
+<li style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; border-top: 1px solid #E6DFCF;">
+<label style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<input type="checkbox" checked="{{ item.done }}" onChange="{{ item.toggle }}" aria-label="Mark done" style="width: 22px; height: 22px; margin: 0; accent-color: #3B6644; cursor: pointer;">
+</label>
+<textarea class="ghost ta" rows="1" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" placeholder="Untitled" aria-label="To do" style="flex: 1 1 150px; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #211E1A; font-size: 17px; line-height: 24px; resize: none; overflow: hidden; field-sizing: content;"></textarea>
+<button type="button" class="icon-btn infobtn" aria-label="Why is this here?" aria-expanded="{{ item.tipOpen }}" onClick="{{ item.tipToggle }}" onBlur="{{ item.tipClose }}" style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: #62594D; cursor: pointer;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 7.6h.01"></path></svg>
+</button>
+<div class="tip" style="display: {{ item.tipDisplay }}; position: absolute; z-index: 30; left: 8px; right: 8px; top: calc(100% - 8px); padding: 14px 16px; border-radius: 12px; background: #211E1A; color: #FBF8F1; font-size: 14px; line-height: 1.5; white-space: pre-line; box-shadow: 0 8px 24px rgba(33, 30, 26, 0.28);">{{ item.why }}</div>
+<div style="flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 10px 48px;">
+<button type="button" class="btn-outline" onClick="{{ item.move }}" style="height: 36px; padding: 0 14px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">{{ item.moveLabel }}</button>
+<button type="button" class="btn-outline" onClick="{{ item.swap }}" style="height: 36px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border: 1px solid #CFC5B0; border-radius: 10px; background: transparent; color: #211E1A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"></path></svg>{{ item.swapLabel }}</button>
+</div>
+</li>
+</sc-for>
+</ul>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<!-- Daily checklist: routines in groups you control -->
+<section aria-label="Daily checklist" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px;">Daily Checklist</h2>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #62594D;">
+<span>{{ checklistCount }}</span>
+<sc-if value="{{ hasChecklistDone }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ resetChecklist }}" style="height: 44px; padding: 0 4px; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Uncheck all</button>
+</sc-if>
+</div>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">Your daily routines, in groups you control. Rename a group, add tasks, move a task to another group with the arrows button, or remove a group (its tasks move to another group).</p>
+<sc-if value="{{ routinesEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 4px 0; font-size: 15px; color: #62594D;">No groups yet. Name your first group below, for example Morning Ritual.</div>
+</sc-if>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; margin-top: 16px; align-items: start;">
+<sc-for list="{{ routines }}" as="grp" hint-placeholder-count="2">
+<div style="background: #FFFEFA; border: 1px solid #E0D8C6; border-radius: 14px; padding: 16px 18px 14px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+<sc-if value="{{ grp.isReal }}" hint-placeholder-val="{{ true }}">
+<input class="ghost" type="text" value="{{ grp.name }}" onChange="{{ grp.setName }}" onKeyDown="{{ grp.nameKey }}" placeholder="Group name" aria-label="Group name" autoComplete="off" style="flex: 1; min-width: 0; height: 44px; padding: 0 10px; margin-left: -10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #211E1A; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">
+</sc-if>
+<span style="flex: none; font-size: 14px; color: #62594D;">{{ grp.countLabel }}</span>
+</div>
+<sc-if value="{{ grp.isReal }}" hint-placeholder-val="{{ true }}">
+<input class="ghost" type="text" value="{{ grp.note }}" onChange="{{ grp.setNote }}" onKeyDown="{{ grp.nameKey }}" placeholder="Add a note, for example a start time" aria-label="Group note" autoComplete="off" style="width: 100%; height: 36px; padding: 0 10px; margin: 0 0 0 -10px; max-width: calc(100% + 10px); border: 1px solid transparent; border-radius: 10px; background: transparent; color: #62594D; font-size: 14px;">
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 0 12px; min-height: 8px;">
+<sc-if value="{{ grp.hasDone }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ grp.uncheck }}" style="height: 36px; padding: 0; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Uncheck group</button>
+</sc-if>
+<sc-if value="{{ grp.canRemove }}" hint-placeholder-val="{{ true }}">
+<button type="button" class="link" onClick="{{ grp.ungroup }}" title="{{ grp.removeTitle }}" style="height: 36px; padding: 0; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Remove group</button>
+</sc-if>
+</div>
+<div style="display: flex; gap: 8px; margin: 4px 0 6px;">
+<input id="{{ grp.addId }}" class="in" type="text" value="{{ grp.addValue }}" onChange="{{ grp.onAddChange }}" onKeyDown="{{ grp.onAddKey }}" placeholder="{{ grp.addPlaceholder }}" aria-label="{{ grp.addPlaceholder }}" autoComplete="off" style="flex: 1; min-width: 0; height: 48px; padding: 0 14px; font-size: 16px;">
+<button type="button" class="btn" onClick="{{ grp.onAdd }}" style="height: 48px; padding: 0 20px; flex: none; border: none; border-radius: 10px; background: #A8461F; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">Add</button>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.rows }}" as="item" hint-placeholder-count="3">
+<li class="row" onDragEnter="{{ item.dragEnter }}" onDragOver="{{ item.dragOver }}" style="display: flex; align-items: center; border-top: 1px solid #E6DFCF; opacity: {{ item.opacity }};">
+<div class="grip" draggable="true" onDragStart="{{ item.dragStart }}" onDragEnd="{{ item.dragEnd }}" title="Drag to reorder or into another group (or press Alt + Up/Down arrow while editing the task)" style="width: 24px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; color: #7A7062; cursor: grab;">
+<svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.5"></circle><circle cx="9" cy="3" r="1.5"></circle><circle cx="3" cy="9" r="1.5"></circle><circle cx="9" cy="9" r="1.5"></circle><circle cx="3" cy="15" r="1.5"></circle><circle cx="9" cy="15" r="1.5"></circle></svg>
+</div>
+<label style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<input type="checkbox" checked="{{ item.done }}" onChange="{{ item.toggle }}" aria-label="Mark done" style="width: 22px; height: 22px; margin: 0; accent-color: #3B6644; cursor: pointer;">
+</label>
+<textarea id="{{ item.inputId }}" class="ghost ta" rows="1" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" placeholder="Untitled task" aria-label="Task name" style="flex: 1 1 120px; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; font-size: 16px; line-height: 24px; text-decoration: {{ item.deco }}; color: {{ item.color }}; resize: none; overflow: hidden; field-sizing: content;"></textarea>
+<label title="Move to another group" style="position: relative; width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; color: #7A7062;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"></path></svg>
+<select value="{{ item.groupValue }}" onChange="{{ item.setGroup }}" aria-label="Move to group" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+<sc-for list="{{ item.options }}" as="o" hint-placeholder-count="3">
+<option value="{{ o.id }}">{{ o.label }}</option>
+</sc-for>
+</select>
+</label>
+<button type="button" class="icon-btn" aria-label="Delete task" onClick="{{ item.remove }}" style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: #7A7062; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"></path></svg>
+</button>
+</li>
+</sc-for>
+</ul>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px;">
+<input id="group-add" class="in" type="text" value="{{ newGroup.value }}" onChange="{{ newGroup.onChange }}" onKeyDown="{{ newGroup.onKey }}" placeholder="New group, for example Weekend reset" aria-label="New group name" autoComplete="off" style="flex: 1 1 240px; min-width: 0; height: 52px; padding: 0 16px; font-size: 17px;">
+<button type="button" class="btn" onClick="{{ newGroup.onAdd }}" style="height: 52px; padding: 0 22px; flex: none; border: none; border-radius: 10px; background: #A8461F; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">Add group</button>
+</div>
+</section>
+</div>
+</sc-if>
+
+<!-- ============ IDEA DUMP ============ -->
+<sc-if value="{{ isIdeas }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 24px;">
+<section aria-label="Capture an idea" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<label for="cap-ideas" style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #62594D;">Quick capture</label>
+<div class="field-wrap" style="margin-top: 10px; display: flex; align-items: center; height: 72px; padding: 0 20px; background: #FFFEFA; border: 1.5px solid #211E1A; border-radius: 16px;">
+<input id="cap-ideas" class="bare" type="text" value="{{ capture.value }}" onChange="{{ capture.onChange }}" onKeyDown="{{ capture.onKey }}" placeholder="What’s on your mind?" autoComplete="off" style="flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent; color: #211E1A; font-family: 'Newsreader', Georgia, serif; font-size: 28px;">
+</div>
+<div style="margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;">
+<span style="font-size: 13px; color: #62594D;">Save as</span>
+<div role="group" aria-label="Save as" style="display: flex; gap: 8px;">
+<sc-for list="{{ kinds }}" as="k" hint-placeholder-count="2">
+<button type="button" class="chip" aria-pressed="{{ k.pressed }}" onClick="{{ k.pick }}" style="height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid {{ k.border }}; background: {{ k.bg }}; color: {{ k.fg }}; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{ k.label }}</button>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #62594D;">{{ captureHint }}</span>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 24px; align-items: start;">
+<sc-for list="{{ ideaGroups }}" as="grp" hint-placeholder-count="2">
+<section aria-label="{{ grp.title }}" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px;">{{ grp.title }}</h2>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #62594D;">
+<span>{{ grp.countLabel }}</span>
+<sc-if value="{{ grp.hasDone }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ grp.clearDone }}" style="height: 44px; padding: 0 4px; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Clear done</button>
+</sc-if>
+</div>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">{{ grp.blurb }}</p>
+<sc-if value="{{ grp.isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 16px 4px 4px; font-size: 15px; color: #62594D;">{{ grp.emptyText }}</div>
+</sc-if>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.items }}" as="item" hint-placeholder-count="3">
+<li style="display: flex; align-items: flex-start; gap: 4px; padding: 10px 0; border-top: 1px solid #E6DFCF;">
+<label style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<input type="checkbox" checked="{{ item.done }}" onChange="{{ item.toggle }}" aria-label="Mark done" style="width: 22px; height: 22px; margin: 0; accent-color: #3B6644; cursor: pointer;">
+</label>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+<textarea class="ghost ta" rows="{{ item.rows }}" value="{{ item.text }}" onChange="{{ item.setText }}" onKeyDown="{{ item.key }}" aria-label="To do" style="width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: {{ item.color }}; font-family: 'Newsreader', Georgia, serif; font-size: 20px; line-height: 1.4; text-decoration: {{ item.deco }}; resize: none; overflow: auto; field-sizing: content;"></textarea>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 0 10px;">
+<label style="display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #62594D;">Plan
+<select class="in" value="{{ item.day }}" onChange="{{ item.setDay }}" style="width: 170px; height: 40px; padding: 0 10px; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none;">
+<option value="idea">Not planned yet</option>
+<option value="today">Today</option>
+<option value="tomorrow">Tomorrow</option>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #62594D;">Type
+<select class="in" value="{{ item.kind }}" onChange="{{ item.setKind }}" style="width: 150px; height: 40px; padding: 0 10px; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none;">
+<option value="work">Work</option>
+<option value="personal">Personal</option>
+</select>
+</label>
+<span style="padding-bottom: 10px; font-size: 13px; color: #62594D;">{{ item.when }}</span>
+</div>
+</div>
+<button type="button" class="icon-btn" aria-label="Delete" onClick="{{ item.remove }}" style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: #7A7062; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"></path></svg>
+</button>
+</li>
+</sc-for>
+</ul>
+</section>
+</sc-for>
+</div>
+
+</div>
+</sc-if>
+
+<!-- ============ PROGRESS ============ -->
+<sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 24px;">
+
+<!-- Overall -->
+<section aria-label="Overall progress" style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px;">Overall progress</h2>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">Every Work and Personal task you have added, and how much of it is finished. Each bar runs from 0 to 100%.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; margin-top: 16px;">
+<sc-for list="{{ tiles }}" as="t" hint-placeholder-count="4">
+<div style="background: #FFFEFA; border: 1px solid #E0D8C6; border-radius: 14px; padding: 18px 20px;">
+<div style="font-size: 14px; font-weight: 600; color: #62594D;">{{ t.label }}</div>
+<div style="margin-top: 6px; font-size: {{ t.size }}; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; color: #211E1A;">{{ t.value }}</div>
+<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ t.pct }}" aria-label="{{ t.label }}" style="margin-top: 12px; height: 12px; border-radius: 6px; background: #E9E2D0; overflow: hidden;">
+<div style="width: {{ t.w }}; height: 100%; background: #3B6644; border-radius: 0 4px 4px 0;"></div>
+</div>
+<div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #7A7062;"><span>0</span><span>100%</span></div>
+<div style="margin-top: 8px; font-size: 14px; color: #62594D;">{{ t.sub }}</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<!-- Done and left over -->
+<section aria-label="Done and left over">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 28px;">Done and left over</h2>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">Anything still open can go straight onto today’s to-do list, so it gets followed up.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 24px; margin-top: 16px; align-items: start;">
+
+<div style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 20px 24px 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+<h3 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">Left over</h3>
+<span style="font-size: 14px; color: #62594D;">{{ leftCount }}</span>
+</div>
+<sc-if value="{{ leftEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 0 10px; font-size: 15px; color: #3B6644; font-weight: 600;">Nothing left over. You are all caught up.</div>
+</sc-if>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ leftOver }}" as="item" hint-placeholder-count="3">
+<li style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 0; border-top: 1px solid #E6DFCF;">
+<div style="flex: 1 1 200px; min-width: 0;">
+<div style="font-size: 16px; color: #211E1A;">{{ item.text }}</div>
+<div style="margin-top: 2px; font-size: 13px; color: #62594D;">{{ item.sub }}</div>
+</div>
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: {{ item.tagBg }}; color: {{ item.tagFg }}; font-size: 12px; font-weight: 600;">{{ item.tag }}</span>
+<sc-if value="{{ item.canAdd }}" hint-placeholder-val="{{ true }}">
+<button type="button" class="btn" onClick="{{ item.add }}" style="height: 36px; padding: 0 14px; flex: none; border: none; border-radius: 10px; background: #A8461F; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Add to today</button>
+</sc-if>
+</li>
+</sc-for>
+</ul>
+<sc-if value="{{ leftMore }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ progToggle }}" style="height: 44px; padding: 0 4px; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">{{ progToggleLabel }}</button>
+</sc-if>
+</div>
+
+<div style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 20px 24px 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+<h3 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">Done</h3>
+<span style="font-size: 14px; color: #62594D;">{{ doneCount }}</span>
+</div>
+<sc-if value="{{ doneEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 0 10px; font-size: 15px; color: #62594D;">Nothing finished yet. Tick a to-do on the Today page and it will show up here.</div>
+</sc-if>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ doneList }}" as="item" hint-placeholder-count="3">
+<li style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 0; border-top: 1px solid #E6DFCF;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B6644" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style="flex: none;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+<div style="flex: 1 1 180px; min-width: 0;">
+<div style="font-size: 16px; color: #211E1A;">{{ item.text }}</div>
+<div style="margin-top: 2px; font-size: 13px; color: #62594D;">{{ item.sub }}</div>
+</div>
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: #EFE8D8; color: #211E1A; font-size: 12px; font-weight: 600;">{{ item.tag }}</span>
+<button type="button" class="link" onClick="{{ item.undo }}" style="height: 36px; padding: 0 4px; flex: none; border: none; background: none; color: #A8461F; font: inherit; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Not done</button>
+</li>
+</sc-for>
+</ul>
+<sc-if value="{{ doneMore }}" hint-placeholder-val="{{ false }}">
+<button type="button" class="link" onClick="{{ progToggle }}" style="height: 44px; padding: 0 4px; border: none; background: none; color: #A8461F; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">{{ progToggleLabel }}</button>
+</sc-if>
+</div>
+
+</div>
+</section>
+
+<!-- Routine reflection -->
+<section aria-label="Routine reflection">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;">
+<h2 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 28px;">Routine reflection</h2>
+<span style="font-size: 14px; color: #62594D;">{{ routineToday }}</span>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: #62594D;">How often you ticked each task on the days you used the checklist, over the last 30 days. Each day is saved when the next day starts.</p>
+<sc-if value="{{ noHistory }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top: 16px; padding: 20px 24px; background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; font-size: 15px; color: #62594D;">Your routine history starts today. Tick your tasks on the Today page. Once a day has passed, the percentages and the tasks you keep missing show up here.</div>
+</sc-if>
+<sc-if value="{{ hasHistory }}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; margin-top: 16px;">
+<div style="background: #E9F0EA; border-radius: 14px; padding: 16px 20px;">
+<div style="font-size: 14px; font-weight: 700; color: #2F5238;">Keep going</div>
+<div style="margin-top: 4px; font-size: 14px; color: #211E1A;">{{ keepText }}</div>
+</div>
+<div style="background: #F8E9E0; border-radius: 14px; padding: 16px 20px;">
+<div style="font-size: 14px; font-weight: 700; color: #7E2F12;">Often missed</div>
+<div style="margin-top: 4px; font-size: 14px; color: #211E1A;">{{ missText }}</div>
+</div>
+</div>
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 14px; font-size: 13px; color: #62594D;">
+<span>Last 7 days, oldest to newest:</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: #3B6644;"></span>done</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; border: 2px solid #B8482B;"></span>missed</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: #E9E2D0;"></span>no record</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 24px; margin-top: 12px; align-items: start;">
+<sc-for list="{{ routineGroups }}" as="grp" hint-placeholder-count="2">
+<div style="background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 20px 24px 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px;">
+<h3 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px;">{{ grp.name }}</h3>
+<span style="font-size: 14px; color: #62594D;">{{ grp.summary }}</span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{ grp.tasks }}" as="task" hint-placeholder-count="4">
+<li style="padding: 12px 0; border-top: 1px solid #E6DFCF;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px;">
+<div style="flex: 1 1 160px; min-width: 0; font-size: 16px; color: #211E1A;">{{ task.text }}</div>
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: {{ task.chipBg }}; color: {{ task.chipFg }}; font-size: 12px; font-weight: 600;">{{ task.chipLabel }}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px;">
+<div role="group" aria-label="{{ task.stripLabel }}" style="display: flex; gap: 3px; flex: none;">
+<sc-for list="{{ task.cells }}" as="c" hint-placeholder-count="7">
+<span title="{{ c.title }}" style="width: 16px; height: 16px; border-radius: 3px; box-sizing: border-box; background: {{ c.bg }}; border: {{ c.border }};"></span>
+</sc-for>
+</div>
+<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ task.pct }}" aria-label="{{ task.text }}" style="flex: 1 1 100px; min-width: 80px; height: 10px; border-radius: 5px; background: #E9E2D0; overflow: hidden;">
+<div style="width: {{ task.w }}; height: 100%; background: {{ task.fill }}; border-radius: 0 4px 4px 0;"></div>
+</div>
+<div style="flex: none; min-width: 40px; text-align: right; font-size: 15px; font-weight: 600; color: #211E1A;">{{ task.pctLabel }}</div>
+</div>
+<div style="margin-top: 4px; font-size: 13px; color: #62594D;">{{ task.detail }}</div>
+</li>
+</sc-for>
+</ul>
+</div>
+</sc-for>
+</div>
+</section>
+
+</div>
+</sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  storeKey() { return 'daily-planner-v1'; }
+
+  uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  blank() {
+    return {
+      top3: [{ text: '', done: false }, { text: '', done: false }, { text: '', done: false }],
+      ideas: [], agenda: [], checklist: [], groups: [], routineSeeded: false, routineLog: {}, routineDay: '', shortGoals: [], longGoals: [], wishes: [], notes: []
+    };
+  }
+
+  // First run: a Morning and an Evening routine to start from. Everything stays editable.
+  seedRoutine(app) {
+    const mk = (gid, list) => list.map((t, i) => ({ id: gid + '-' + (i + 1), text: t, done: false, group: gid }));
+    app.groups = [
+      { id: 'grp-morning', text: 'Morning Ritual', note: 'Starts 6:00 am · aim to wake up at 5:30 am' },
+      { id: 'grp-evening', text: 'Evening Wind-down', note: 'Home by 6:30 pm' }
+    ].concat(app.groups);
+    app.checklist = mk('grp-morning', ['Drink water', 'Probiotic', 'Protein', 'Exercise 15 mins'])
+      .concat(mk('grp-evening', ['Shower', 'Cook dinner', 'Wait 1 hour after dinner', 'Exercise']))
+      .concat(app.checklist);
+    app.routineSeeded = true;
+  }
+
+  // Each new day: save yesterday's ticks to the routine log, then start the checklist fresh.
+  rollApp(app, todayKey) {
+    if (app.routineDay === todayKey) return false;
+    const prev = app.routineDay;
+    if (prev && prev < todayKey) {
+      const snap = {};
+      let any = false;
+      app.checklist.forEach((x) => { snap[x.id] = x.done ? 1 : 0; if (x.done) any = true; });
+      if (any) app.routineLog[prev] = snap;
+      app.checklist.forEach((x) => { x.done = false; });
+    }
+    app.routineDay = todayKey;
+    const now = new Date();
+    const cut = this.ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 120));
+    Object.keys(app.routineLog).forEach((d) => { if (d < cut) delete app.routineLog[d]; });
+    return true;
+  }
+
+  load() {
+    const app = this.blank();
+    let saved = null;
+    try {
+      const raw = window.localStorage.getItem(this.storeKey());
+      if (raw) saved = JSON.parse(raw);
+    } catch (e) { saved = null; }
+    if (saved && typeof saved === 'object') {
+      try {
+        Object.keys(app).forEach((k) => {
+          if (k === 'top3') return;
+          if (Array.isArray(saved[k])) {
+            app[k] = saved[k]
+              .filter((x) => x && typeof x === 'object')
+              .map((x) => Object.assign({}, x, { id: x.id || this.uid(), text: String(x.text || '') }));
+          }
+        });
+        app.ideas = app.ideas.map((x) => Object.assign({}, x, {
+          kind: (x.kind === 'personal' || x.kind === 'inspo') ? 'personal' : 'work',
+          planDate: typeof x.planDate === 'string' && x.planDate ? x.planDate : null,
+          done: !!x.done,
+          at: x.at || Date.now()
+        }));
+        app.routineSeeded = !!saved.routineSeeded;
+        app.groups = app.groups.map((g) => Object.assign({}, g, { note: String(g.note || '') }));
+        app.routineDay = typeof saved.routineDay === 'string' ? saved.routineDay : '';
+        if (saved.routineLog && typeof saved.routineLog === 'object' && !Array.isArray(saved.routineLog)) {
+          Object.keys(saved.routineLog).forEach((d) => {
+            const e = saved.routineLog[d];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d) && e && typeof e === 'object') app.routineLog[d] = e;
+          });
+        }
+        if (Array.isArray(saved.top3)) {
+          app.top3 = app.top3.map((d, i) => {
+            const t = saved.top3[i];
+            return t && typeof t === 'object' ? { text: String(t.text || ''), done: !!t.done } : d;
+          });
+        }
+      } catch (e) { /* corrupt data: keep what was read */ }
+    }
+    let changed = false;
+    if (!app.routineSeeded) { this.seedRoutine(app); changed = true; }
+    if (this.rollApp(app, this.ymd(new Date()))) changed = true;
+    if (changed) this.persist(app);
+    return app;
+  }
+
+  persist(app) {
+    try {
+      window.localStorage.setItem(this.storeKey(), JSON.stringify(app));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  ensure() {
+    if (!this.state || !this.state.app) {
+      this.state = Object.assign({}, this.state, {
+        app: this.load(), page: 'today', saved: false, storageOk: true, dragId: null, captureKind: 'work', tipId: null,
+        captureDraft: '', agendaDraft: '', groupDrafts: {}, groupNameDraft: '', sugAll: false, progAll: false,
+        shortDraft: '', longDraft: '', wishDraft: '', noteDraft: ''
+      });
+    }
+    return this.state;
+  }
+
+  componentDidMount() {
+    this.ensure();
+    this._onStorage = (e) => {
+      if (e.key === null || e.key === this.storeKey()) this.setState({ app: this.load() });
+    };
+    try { window.addEventListener('storage', this._onStorage); } catch (e) { /* ignore */ }
+    this._roll = setInterval(() => this.checkDay(), 60000);
+    this._onVis = () => this.checkDay();
+    try { document.addEventListener('visibilitychange', this._onVis); } catch (e) { /* ignore */ }
+  }
+
+  // If the app stays open past midnight, roll the routine over to the new day.
+  checkDay() {
+    const s = this.ensure();
+    const today = this.ymd(new Date());
+    if (s.app.routineDay !== today) this.commit((app) => { this.rollApp(app, today); });
+  }
+
+  componentWillUnmount() {
+    try { window.removeEventListener('storage', this._onStorage); } catch (e) { /* ignore */ }
+    try { document.removeEventListener('visibilitychange', this._onVis); } catch (e) { /* ignore */ }
+    clearInterval(this._roll);
+    clearTimeout(this._t);
+  }
+
+  // Apply a change to a copy of the data, save it to localStorage, flash "Saved".
+  commit(fn, extra) {
+    const s = this.ensure();
+    const app = JSON.parse(JSON.stringify(s.app));
+    fn(app);
+    const ok = this.persist(app);
+    this.setState(Object.assign({ app: app, saved: true, storageOk: ok }, extra || {}));
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ saved: false }), 1800);
+  }
+
+  edit(list, id, patch) {
+    this.commit((app) => {
+      const it = app[list].find((x) => x.id === id);
+      if (it) Object.assign(it, patch);
+    });
+  }
+
+  remove(list, id) {
+    this.commit((app) => { app[list] = app[list].filter((x) => x.id !== id); });
+  }
+
+  focusId(id) {
+    setTimeout(() => {
+      try { const el = document.getElementById(id); if (el) el.focus(); } catch (e) { /* ignore */ }
+    }, 0);
+  }
+
+  composing(e) { return !!(e.nativeEvent && e.nativeEvent.isComposing); }
+
+  // Enter or Escape leaves a field (edits are already saved as you type).
+  blurKey(e, multiline) {
+    if (this.composing(e)) return;
+    if (e.key === 'Escape' || (e.key === 'Enter' && !(multiline && e.shiftKey))) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  }
+
+  // An "add new" field: type, press Enter (or the button) to save, focus stays put.
+  form(draftKey, list, mk, front, focusId, extraReset) {
+    const s = this.ensure();
+    const add = () => {
+      const st = this.ensure();
+      const text = String(st[draftKey] || '').trim();
+      if (!text) return;
+      const item = mk(text, st);
+      const reset = Object.assign({ [draftKey]: '' }, extraReset || {});
+      this.commit((app) => { if (front) app[list].unshift(item); else app[list].push(item); }, reset);
+      if (focusId) this.focusId(focusId);
+    };
+    return {
+      value: s[draftKey] || '',
+      onChange: (e) => this.setState({ [draftKey]: e.target.value }),
+      onKey: (e) => {
+        if (this.composing(e)) return;
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); }
+        else if (e.key === 'Escape') { this.setState({ [draftKey]: '' }); }
+      },
+      onAdd: add
+    };
+  }
+
+  // ---- drag to reorder (live, no drop event needed) ----
+  dragStart(e, list, id) {
+    this.drag = { list: list, id: id };
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+      const row = e.currentTarget.closest('li');
+      if (row) e.dataTransfer.setDragImage(row, 20, 24);
+    } catch (err) { /* ignore */ }
+    setTimeout(() => this.setState({ dragId: id }), 0);
+  }
+
+  dragEnter(list, targetId) {
+    const d = this.drag;
+    if (!d || d.list !== list || d.id === targetId) return;
+    this.commit((app) => {
+      const arr = app[list];
+      const from = arr.findIndex((x) => x.id === d.id);
+      const to = arr.findIndex((x) => x.id === targetId);
+      if (from < 0 || to < 0) return;
+      const target = arr[to];
+      const moved = arr.splice(from, 1)[0];
+      if (list === 'checklist' && target) moved.group = target.group || '';
+      arr.splice(to, 0, moved);
+    });
+  }
+
+  dragEnd() {
+    this.drag = null;
+    this.setState({ dragId: null });
+  }
+
+  move(list, id, delta) {
+    const arr = this.ensure().app[list];
+    const from = arr.findIndex((x) => x.id === id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= arr.length) return -1;
+    this.commit((app) => {
+      const a = app[list];
+      const moved = a.splice(from, 1)[0];
+      a.splice(to, 0, moved);
+    });
+    return to;
+  }
+
+  // Alt + Up/Down moves a task within its own group.
+  moveInGroup(id, delta) {
+    const arr = this.ensure().app.checklist;
+    const from = arr.findIndex((x) => x.id === id);
+    if (from < 0) return;
+    const g = arr[from].group || '';
+    const same = [];
+    arr.forEach((x, i) => { if ((x.group || '') === g) same.push(i); });
+    const to = same[same.indexOf(from) + delta];
+    if (to === undefined) return;
+    this.commit((app) => {
+      const a = app.checklist;
+      const moved = a.splice(from, 1)[0];
+      a.splice(to, 0, moved);
+    });
+    this.focusId('task-' + id);
+  }
+
+  taskKey(e, id) {
+    if (this.composing(e)) return;
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      this.moveInGroup(id, e.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+    this.blurKey(e, false);
+  }
+
+  fmtWhen(ts) {
+    try {
+      return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  rowsFor(text, cpl) {
+    let n = 0;
+    String(text || '').split('\n').forEach((l) => { n += Math.max(1, Math.ceil(l.length / cpl)); });
+    return Math.min(12, Math.max(1, n));
+  }
+
+  addRoutineTask(gid) {
+    const st = this.ensure();
+    const key = gid;
+    const text = String((st.groupDrafts && st.groupDrafts[key]) || '').trim();
+    if (!text) return;
+    this.commit((app) => { app.checklist.push({ id: this.uid(), text: text, done: false, group: gid }); },
+      { groupDrafts: Object.assign({}, st.groupDrafts, { [key]: '' }) });
+    this.focusId('gadd-' + key);
+  }
+
+  addGroup() {
+    const st = this.ensure();
+    const text = String(st.groupNameDraft || '').trim();
+    if (!text) return;
+    this.commit((app) => { app.groups.push({ id: this.uid(), text: text, note: '' }); }, { groupNameDraft: '' });
+    this.focusId('group-add');
+  }
+
+  // One card of the Daily Checklist.
+  routineBlock(g) {
+    const s = this.ensure();
+    const a = s.app;
+    const gid = g.id;
+    const key = gid;
+    const dest = a.groups.find((x) => x.id !== g.id);
+    const inBlock = (x) => x.group === g.id;
+    const items = a.checklist.filter(inBlock);
+    const doneN = items.filter((x) => x.done).length;
+    const options = a.groups.map((x) => ({ id: x.id, label: x.text || 'Untitled group' }));
+    const drafts = s.groupDrafts || {};
+    const add = () => this.addRoutineTask(gid);
+    return {
+      id: key,
+      isReal: true,
+      name: g.text,
+      note: g.note || '',
+      setName: (e) => this.edit('groups', g.id, { text: e.target.value }),
+      setNote: (e) => this.edit('groups', g.id, { note: e.target.value }),
+      nameKey: (e) => this.blurKey(e, false),
+      countLabel: items.length ? doneN + ' of ' + items.length + ' done' : 'No tasks yet',
+      hasDone: doneN > 0,
+      uncheck: () => this.commit((app) => { app.checklist.forEach((x) => { if (inBlock(x)) x.done = false; }); }),
+      canRemove: !!dest,
+      removeTitle: dest ? 'Removes this group. Its tasks move to ' + (dest.text || 'another group') + '.' : '',
+      ungroup: () => {
+        if (!dest) return;
+        this.commit((app) => {
+          app.checklist.forEach((x) => { if (x.group === g.id) x.group = dest.id; });
+          app.groups = app.groups.filter((x) => x.id !== g.id);
+        });
+      },
+      addId: 'gadd-' + key,
+      addPlaceholder: 'Add to ' + (g.text || 'this group') + '…',
+      addValue: drafts[key] || '',
+      onAddChange: (e) => this.setState({ groupDrafts: Object.assign({}, this.ensure().groupDrafts, { [key]: e.target.value }) }),
+      onAddKey: (e) => {
+        if (this.composing(e)) return;
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); }
+        else if (e.key === 'Escape') { this.setState({ groupDrafts: Object.assign({}, this.ensure().groupDrafts, { [key]: '' }) }); }
+      },
+      onAdd: add,
+      rows: items.map((it) => ({
+        id: it.id,
+        inputId: 'task-' + it.id,
+        text: it.text,
+        done: !!it.done,
+        deco: it.done ? 'line-through' : 'none',
+        color: it.done ? '#62594D' : '#211E1A',
+        opacity: s.dragId === it.id ? '0.45' : '1',
+        groupValue: it.group,
+        options: options,
+        toggle: (e) => this.edit('checklist', it.id, { done: !!e.target.checked }),
+        setText: (e) => this.edit('checklist', it.id, { text: e.target.value }),
+        setGroup: (e) => this.edit('checklist', it.id, { group: e.target.value }),
+        remove: () => this.remove('checklist', it.id),
+        key: (e) => this.taskKey(e, it.id),
+        dragStart: (e) => this.dragStart(e, 'checklist', it.id),
+        dragEnter: () => this.dragEnter('checklist', it.id),
+        dragOver: (e) => { if (this.drag && this.drag.list === 'checklist') e.preventDefault(); },
+        dragEnd: () => this.dragEnd()
+      }))
+    };
+  }
+
+  // ---- Ideas -> Suggested for today -> To-do lists ----
+  ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  keys() {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return { now: now, today: this.ymd(now), tomorrow: this.ymd(next) };
+  }
+
+  // No plan date: an idea, listed under Suggested for today. A plan date puts it on a to-do list.
+  dayOf(it, keys) {
+    if (!it.planDate) return 'idea';
+    return it.planDate >= keys.tomorrow ? 'tomorrow' : 'today';
+  }
+
+  waited(it, now) {
+    const a = new Date(it.at || now.getTime());
+    const d0 = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+    const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return Math.max(0, Math.round((n0 - d0) / 86400000));
+  }
+
+  plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  fmtDate(ts) {
+    try { return new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return ''; }
+  }
+
+  why(it, day, keys) {
+    const cat = it.kind === 'personal' ? 'Personal' : 'Work';
+    const w = this.waited(it, keys.now);
+    const wait = w === 0 ? 'Added today.' : 'Added ' + this.plural(w, 'day', 'days') + ' ago. The ideas waiting longest are listed first.';
+    if (day === 'idea') {
+      return ['It is in your Ideas under ' + cat + ' and has not been planned yet.', wait,
+        'You decide: press “Add to today” to put it on today’s to-do list, or “Do tomorrow” to plan it for tomorrow.'].join('\n');
+    }
+    if (day === 'tomorrow') {
+      return ['You moved it to tomorrow.', wait, 'Press “Do today” to bring it back to today’s list.'].join('\n');
+    }
+    const l1 = it.planDate === keys.today
+      ? 'You put it on today’s list.'
+      : 'Carried over from an earlier day. It stays until you finish it or move it.';
+    return [l1, wait, 'Press “Do tomorrow” to move it, or tick it when it is done.'].join('\n');
+  }
+
+  // Fields every to-do / suggestion row shares.
+  rowBase(it, day, keys) {
+    const s = this.ensure();
+    const other = it.kind === 'personal' ? 'work' : 'personal';
+    return {
+      id: it.id,
+      text: it.text,
+      tag: it.kind === 'personal' ? 'Personal' : 'Work',
+      why: this.why(it, day, keys),
+      tipOpen: s.tipId === it.id,
+      tipDisplay: s.tipId === it.id ? 'block' : 'none',
+      tipToggle: () => this.setState({ tipId: this.ensure().tipId === it.id ? null : it.id }),
+      tipClose: () => { if (this.ensure().tipId === it.id) this.setState({ tipId: null }); },
+      setText: (e) => this.edit('ideas', it.id, { text: e.target.value }),
+      swapLabel: other === 'work' ? 'Move to Work' : 'Move to Personal',
+      swap: () => this.edit('ideas', it.id, { kind: other }),
+      key: (e) => this.blurKey(e, false)
+    };
+  }
+
+  openIdeas(day, keys, kinds) {
+    return this.ensure().app.ideas
+      .filter((x) => kinds.indexOf(x.kind) >= 0 && !x.done && this.dayOf(x, keys) === day)
+      .sort((x, y) => (x.at || 0) - (y.at || 0));
+  }
+
+  // Open to-dos for today or tomorrow, oldest first.
+  planRows(day, keys, kinds) {
+    return this.openIdeas(day, keys, kinds).map((it) => Object.assign(this.rowBase(it, day, keys), {
+      done: false,
+      moveLabel: day === 'today' ? 'Do tomorrow' : 'Do today',
+      toggle: () => this.edit('ideas', it.id, { done: true, doneAt: Date.now() }),
+      move: () => this.edit('ideas', it.id, { planDate: day === 'today' ? keys.tomorrow : keys.today })
+    }));
+  }
+
+  // Ideas that are not on a to-do list yet, oldest first.
+  suggestRows(keys) {
+    return this.openIdeas('idea', keys, ['work', 'personal']).map((it) => Object.assign(this.rowBase(it, 'idea', keys), {
+      add: () => this.edit('ideas', it.id, { planDate: keys.today }),
+      later: () => this.edit('ideas', it.id, { planDate: keys.tomorrow })
+    }));
+  }
+
+  // To-dos finished today stay visible (struck through) under the open ones.
+  doneRows(keys, kinds) {
+    const s = this.ensure();
+    const start = new Date(keys.now.getFullYear(), keys.now.getMonth(), keys.now.getDate()).getTime();
+    return s.app.ideas
+      .filter((x) => kinds.indexOf(x.kind) >= 0 && x.done && (x.doneAt || 0) >= start)
+      .sort((x, y) => (y.doneAt || 0) - (x.doneAt || 0))
+      .map((it) => ({
+        id: it.id,
+        text: it.text,
+        done: true,
+        toggle: () => this.edit('ideas', it.id, { done: false, doneAt: null }),
+        setText: (e) => this.edit('ideas', it.id, { text: e.target.value }),
+        key: (e) => this.blurKey(e, false)
+      }));
+  }
+
+  // Ideas page rows (newest first, so rows do not jump while you edit).
+  ideaRows(kind, keys) {
+    const s = this.ensure();
+    return s.app.ideas.filter((x) => x.kind === kind).map((it) => ({
+      id: it.id,
+      text: it.text,
+      when: this.fmtWhen(it.at),
+      rows: this.rowsFor(it.text, 40),
+      done: !!it.done,
+      deco: it.done ? 'line-through' : 'none',
+      color: it.done ? '#62594D' : '#211E1A',
+      day: this.dayOf(it, keys),
+      kind: it.kind,
+      toggle: (e) => this.edit('ideas', it.id, { done: !!e.target.checked, doneAt: e.target.checked ? Date.now() : null }),
+      setText: (e) => this.edit('ideas', it.id, { text: e.target.value }),
+      setDay: (e) => this.edit('ideas', it.id, { planDate: e.target.value === 'today' ? keys.today : (e.target.value === 'tomorrow' ? keys.tomorrow : null) }),
+      setKind: (e) => this.edit('ideas', it.id, { kind: e.target.value }),
+      remove: () => this.remove('ideas', it.id),
+      key: (e) => this.blurKey(e, true)
+    }));
+  }
+
+  // ---- Progress ----
+  // How often each routine task was ticked, from the days saved in routineLog (last 30 days).
+  routineStats(keys) {
+    const a = this.ensure().app;
+    const log = a.routineLog || {};
+    const day0 = new Date(keys.now.getFullYear(), keys.now.getMonth(), keys.now.getDate());
+    const back = (n) => new Date(day0.getFullYear(), day0.getMonth(), day0.getDate() - n);
+    const cutoff = this.ymd(back(30));
+    const days = Object.keys(log).filter((d) => d >= cutoff && d < keys.today);
+    const strip = [];
+    for (let i = 7; i >= 1; i--) {
+      const dt = back(i);
+      strip.push({ key: this.ymd(dt), label: dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) });
+    }
+    const ids = a.groups.map((g) => g.id);
+    const blocks = a.groups.map((g) => ({ id: g.id, name: g.text || 'Untitled group', items: a.checklist.filter((x) => x.group === g.id) }));
+
+    const look = {
+      keep: { label: 'Keep going', bg: '#E3EDE4', fg: '#2F5238', fill: '#3B6644' },
+      some: { label: 'Sometimes', bg: '#F4EBCB', fg: '#5F4A0E', fill: '#A97F1E' },
+      miss: { label: 'Often missed', bg: '#F6E4DA', fg: '#7E2F12', fill: '#B8482B' },
+      early: { label: 'Too early to say', bg: '#EFE8D8', fg: '#4E463A', fill: '#9A9080' }
+    };
+    let sumK = 0;
+    let sumN = 0;
+    const all = [];
+    const groups = blocks.filter((b) => b.items.length).map((b) => {
+      let gk = 0;
+      let gn = 0;
+      const tasks = b.items.map((it) => {
+        let k = 0;
+        let n = 0;
+        days.forEach((d) => {
+          const e = log[d];
+          if (e && Object.prototype.hasOwnProperty.call(e, it.id)) { n += 1; k += e[it.id] ? 1 : 0; }
+        });
+        gk += k;
+        gn += n;
+        const pct = n ? Math.round((100 * k) / n) : 0;
+        const st = n < 3 ? 'early' : (pct >= 80 ? 'keep' : (pct >= 50 ? 'some' : 'miss'));
+        const L = look[st];
+        const cells = strip.map((sd) => {
+          const e = log[sd.key];
+          const has = e && Object.prototype.hasOwnProperty.call(e, it.id);
+          const done = has && e[it.id];
+          return {
+            bg: has ? (done ? '#3B6644' : 'transparent') : '#E9E2D0',
+            border: has ? (done ? '2px solid #3B6644' : '2px solid #B8482B') : '2px solid transparent',
+            title: sd.label + ': ' + (has ? (done ? 'done' : 'missed') : 'no record')
+          };
+        });
+        const row = {
+          id: it.id, text: it.text || 'Untitled task', n: n, k: k, pct: pct, st: st,
+          chipLabel: L.label, chipBg: L.bg, chipFg: L.fg, fill: L.fill,
+          w: pct + '%',
+          pctLabel: n ? pct + '%' : '–',
+          detail: n ? 'Ticked ' + k + ' of ' + this.plural(n, 'day', 'days') : 'No record yet',
+          stripLabel: 'Last 7 days, oldest to newest: ' + cells.map((c) => c.title).join('; '),
+          cells: cells
+        };
+        all.push(row);
+        return row;
+      });
+      sumK += gk;
+      sumN += gn;
+      return { id: b.id, name: b.name, tasks: tasks, summary: gn ? Math.round((100 * gk) / gn) + '% overall' : 'No record yet' };
+    });
+    const names = (arr) => (arr.length ? arr.slice(0, 5).map((r) => r.text + ' (' + r.pct + '%)').join(', ') : '');
+    const keep = all.filter((r) => r.st === 'keep').sort((x, y) => y.pct - x.pct);
+    const miss = all.filter((r) => r.st === 'miss').sort((x, y) => x.pct - y.pct);
+    return {
+      groups: groups,
+      dayCount: days.length,
+      pct: sumN ? Math.round((100 * sumK) / sumN) : null,
+      keepText: names(keep) || 'Nothing yet. A task needs at least 3 recorded days.',
+      missText: names(miss) || 'Nothing is being missed often. Nice.'
+    };
+  }
+
+  renderVals() {
+    const s = this.ensure();
+    const a = s.app;
+    const page = s.page;
+
+    const doneOf = (arr) => arr.filter((x) => x.done).length;
+    const countOf = (arr) => (arr.length ? doneOf(arr) + ' of ' + arr.length + ' done' : '');
+
+    const pages = [
+      { id: 'today', label: 'Today' },
+      { id: 'ideas', label: 'Ideas' },
+      { id: 'progress', label: 'Progress' }
+    ];
+    const tabs = pages.map((p) => {
+      const on = page === p.id;
+      return {
+        label: p.label,
+        current: on ? 'page' : undefined,
+        bg: on ? '#A8461F' : 'transparent',
+        fg: on ? '#FFFFFF' : '#211E1A',
+        border: on ? '#A8461F' : '#CFC5B0',
+        go: () => this.setState({ page: p.id, tipId: null })
+      };
+    });
+
+    let dateLabel = '';
+    let tomorrowDate = '';
+    try {
+      const d0 = new Date();
+      dateLabel = d0.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      tomorrowDate = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 1)
+        .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) { /* ignore */ }
+    const titles = {
+      today: { eyebrow: '', subtitle: dateLabel, title: 'Today' },
+      ideas: { eyebrow: 'Things to make or do', subtitle: '', title: 'Ideas' },
+      progress: { eyebrow: 'How you are doing', subtitle: '', title: 'Progress' }
+    };
+
+    const captureBase = this.form('captureDraft', 'ideas',
+      (t, st) => ({
+        id: this.uid(), text: t, at: Date.now(),
+        kind: st.captureKind === 'personal' ? 'personal' : 'work',
+        planDate: null, done: false
+      }), true, null);
+
+    const newGroup = {
+      value: s.groupNameDraft || '',
+      onChange: (e) => this.setState({ groupNameDraft: e.target.value }),
+      onKey: (e) => {
+        if (this.composing(e)) return;
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.addGroup(); }
+        else if (e.key === 'Escape') { this.setState({ groupNameDraft: '' }); }
+      },
+      onAdd: () => this.addGroup()
+    };
+    const routines = a.groups.map((g) => this.routineBlock(g));
+    const idsNow = a.groups.map((g) => g.id);
+    const visible = a.checklist.filter((x) => idsNow.indexOf(x.group) >= 0);
+
+    const keys = this.keys();
+    const names = { work: 'Work', personal: 'Personal' };
+    const both = ['work', 'personal'];
+
+    // Today's to-do: Work and Personal
+    const todayGroups = both.map((k) => {
+      const open = this.planRows('today', keys, [k]);
+      const done = this.doneRows(keys, [k]);
+      return {
+        id: k,
+        title: names[k],
+        open: open,
+        done: done,
+        isEmpty: open.length === 0 && done.length === 0,
+        emptyText: k === 'work' ? 'Nothing for work today.' : 'Nothing personal today.',
+        countLabel: (open.length || done.length)
+          ? open.length + ' to do' + (done.length ? ' · ' + done.length + ' done' : '')
+          : ''
+      };
+    });
+    const openToday = todayGroups.reduce((n, g) => n + g.open.length, 0);
+    const doneToday = todayGroups.reduce((n, g) => n + g.done.length, 0);
+
+    // Tomorrow: Work and Personal
+    const tomorrowGroups = both.map((k) => {
+      const open = this.planRows('tomorrow', keys, [k]);
+      return {
+        id: k,
+        title: names[k],
+        open: open,
+        isEmpty: open.length === 0,
+        emptyText: k === 'work' ? 'Nothing for work yet.' : 'Nothing personal yet.',
+        countLabel: open.length ? open.length + ' planned' : ''
+      };
+    });
+    const tomorrowN = tomorrowGroups.reduce((n, g) => n + g.open.length, 0);
+
+    let todayNote = '';
+    if (openToday === 0 && doneToday > 0) todayNote = 'All done for today.';
+    else if (openToday === 0 && tomorrowN > 0) todayNote = 'Nothing left for today. The rest is planned for tomorrow.';
+    const todayCountLabel = (openToday || doneToday)
+      ? openToday + ' to do' + (doneToday ? ' · ' + doneToday + ' done' : '')
+      : '';
+
+    // Suggested for today (ideas not planned yet)
+    const sugAll = this.suggestRows(keys);
+    const SUG_LIMIT = 5;
+    const sugShown = s.sugAll ? sugAll : sugAll.slice(0, SUG_LIMIT);
+
+    // Ideas page
+    const ideaGroups = both.map((k) => {
+      const all = a.ideas.filter((x) => x.kind === k);
+      const doneN = all.filter((x) => x.done).length;
+      return {
+        id: k,
+        title: names[k],
+        items: this.ideaRows(k, keys),
+        isEmpty: all.length === 0,
+        countLabel: all.length ? (all.length - doneN) + ' open' + (doneN ? ' · ' + doneN + ' done' : '') : '',
+        hasDone: doneN > 0,
+        clearDone: () => this.commit((app) => { app.ideas = app.ideas.filter((x) => !(x.kind === k && x.done)); }),
+        blurb: names[k] + ' things you want to make or do. They show up under Suggested for today until you plan them.',
+        emptyText: 'Nothing here yet. Choose ' + names[k] + ' next to the capture field.'
+      };
+    });
+    const storageOk = s.storageOk !== false;
+
+    const kindNow = s.captureKind === 'personal' ? 'personal' : 'work';
+    const kinds = [{ id: 'work', label: 'Work' }, { id: 'personal', label: 'Personal' }].map((k) => {
+      const on = kindNow === k.id;
+      return {
+        label: k.label,
+        pressed: on,
+        bg: on ? '#A8461F' : 'transparent',
+        fg: on ? '#FFFFFF' : '#211E1A',
+        border: on ? '#A8461F' : '#CFC5B0',
+        pick: () => this.setState({ captureKind: k.id })
+      };
+    });
+
+    // Progress page
+    const tasksAll = a.ideas.filter((x) => x.kind === 'work' || x.kind === 'personal');
+    const pctOf = (arr) => (arr.length ? Math.round((100 * doneOf(arr)) / arr.length) : 0);
+    const subOf = (arr) => (arr.length ? doneOf(arr) + ' of ' + arr.length + ' tasks done · ' + (arr.length - doneOf(arr)) + ' left' : 'No tasks yet');
+    const rs = this.routineStats(keys);
+    const gidsP = a.groups.map((g) => g.id);
+    const visP = a.checklist.filter((x) => gidsP.indexOf(x.group) >= 0);
+    const tick = visP.filter((x) => x.done).length;
+    const tile = (label, pct, sub, hero, valueText) => ({
+      label: label, pct: pct, w: pct + '%', value: valueText || pct + '%', sub: sub, size: hero ? '56px' : '40px'
+    });
+    const tiles = [
+      tile('All tasks done', pctOf(tasksAll), subOf(tasksAll), true),
+      tile('Work', pctOf(tasksAll.filter((x) => x.kind === 'work')), subOf(tasksAll.filter((x) => x.kind === 'work')), false),
+      tile('Personal', pctOf(tasksAll.filter((x) => x.kind === 'personal')), subOf(tasksAll.filter((x) => x.kind === 'personal')), false),
+      rs.pct === null
+        ? tile('Routine, last 30 days', 0, 'Starts after your first full day', false, '–')
+        : tile('Routine, last 30 days', rs.pct, 'Across ' + this.plural(rs.dayCount, 'recorded day', 'recorded days'), false)
+    ];
+
+    const PROG_LIMIT = 8;
+    const doneItems = tasksAll.filter((x) => x.done).sort((x, y) => (y.doneAt || y.at || 0) - (x.doneAt || x.at || 0));
+    const leftItems = tasksAll.filter((x) => !x.done).sort((x, y) => (x.at || 0) - (y.at || 0));
+    const doneShown = s.progAll ? doneItems : doneItems.slice(0, PROG_LIMIT);
+    const leftShown = s.progAll ? leftItems : leftItems.slice(0, PROG_LIMIT);
+    const statusLook = {
+      today: { text: 'On today’s list', bg: '#E3EDE4', fg: '#2F5238' },
+      tomorrow: { text: 'Planned for tomorrow', bg: '#EFE8D8', fg: '#4E463A' },
+      idea: { text: 'Not planned yet', bg: '#F6E4DA', fg: '#7E2F12' }
+    };
+    const leftOver = leftShown.map((it) => {
+      const day = this.dayOf(it, keys);
+      const w = this.waited(it, keys.now);
+      const carried = it.planDate && it.planDate < keys.today;
+      return {
+        id: it.id,
+        text: it.text || 'Untitled',
+        tag: statusLook[day].text,
+        tagBg: statusLook[day].bg,
+        tagFg: statusLook[day].fg,
+        sub: (it.kind === 'personal' ? 'Personal' : 'Work') + ' · ' + (carried ? 'carried over · ' : '') + (w === 0 ? 'added today' : 'waiting ' + this.plural(w, 'day', 'days')),
+        canAdd: day !== 'today',
+        add: () => this.edit('ideas', it.id, { planDate: keys.today })
+      };
+    });
+    const doneList = doneShown.map((it) => ({
+      id: it.id,
+      text: it.text || 'Untitled',
+      tag: it.kind === 'personal' ? 'Personal' : 'Work',
+      sub: it.doneAt ? 'Done ' + this.fmtDate(it.doneAt) : 'Done',
+      undo: () => this.edit('ideas', it.id, { done: false, doneAt: null })
+    }));
+
+    return {
+      pageEyebrow: titles[page].eyebrow,
+      pageTitle: titles[page].title,
+      hasEyebrow: titles[page].eyebrow !== '',
+      pageSubtitle: titles[page].subtitle,
+      hasSubtitle: titles[page].subtitle !== '',
+      tabs: tabs,
+      isToday: page === 'today',
+      isIdeas: page === 'ideas',
+      isProgress: page === 'progress',
+
+      showSaveMsg: !!s.saved || !storageOk,
+      saveMsg: storageOk ? 'Saved ✓' : 'Not saved: browser storage is blocked',
+      saveColor: storageOk ? '#3B6644' : '#A8461F',
+
+      capture: captureBase,
+      kinds: kinds,
+      captureHint: 'Press Enter to save. It waits under Suggested for today until you plan it.',
+      goIdeas: () => this.setState({ page: 'ideas' }),
+
+      suggestions: sugShown,
+      sugCount: sugAll.length ? this.plural(sugAll.length, 'idea', 'ideas') : '',
+      sugEmpty: sugAll.length === 0,
+      sugMore: sugAll.length > SUG_LIMIT,
+      sugToggle: () => this.setState({ sugAll: !this.ensure().sugAll }),
+      sugToggleLabel: s.sugAll ? 'Show fewer' : 'Show all ' + sugAll.length,
+
+      todayGroups: todayGroups,
+      todayCountLabel: todayCountLabel,
+      hasTodayNote: todayNote !== '',
+      todayNote: todayNote,
+      tomorrowGroups: tomorrowGroups,
+      hasTomorrow: tomorrowN > 0,
+      tomorrowCountLabel: tomorrowN + ' planned',
+      tomorrowDate: tomorrowDate,
+
+      ideaGroups: ideaGroups,
+
+      routines: routines,
+      routinesEmpty: a.groups.length === 0,
+      newGroup: newGroup,
+      checklistCount: countOf(visible),
+      hasChecklistDone: doneOf(visible) > 0,
+      resetChecklist: () => this.commit((app) => { app.checklist.forEach((x) => { x.done = false; }); }),
+
+      tiles: tiles,
+      leftOver: leftOver,
+      leftCount: leftItems.length ? leftItems.length + ' open' : '',
+      leftEmpty: leftItems.length === 0,
+      leftMore: leftItems.length > PROG_LIMIT,
+      doneList: doneList,
+      doneCount: doneItems.length ? String(doneItems.length) : '',
+      doneEmpty: doneItems.length === 0,
+      doneMore: doneItems.length > PROG_LIMIT,
+      progToggle: () => this.setState({ progAll: !this.ensure().progAll }),
+      progToggleLabel: s.progAll ? 'Show fewer' : 'Show all',
+
+      routineGroups: rs.groups,
+      hasHistory: rs.dayCount > 0,
+      noHistory: rs.dayCount === 0,
+      keepText: rs.keepText,
+      missText: rs.missText,
+      routineToday: visP.length ? 'Today so far: ' + tick + ' of ' + visP.length + ' ticked' : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

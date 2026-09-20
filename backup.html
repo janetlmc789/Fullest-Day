@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Planner: backup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F4EFE4">
+<link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+<link rel="stylesheet" href="./fonts/fonts.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #F4EFE4; color: #211E1A; font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.45; }
+main { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 20px; }
+h1 { margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.05; }
+h2 { margin: 0; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 24px; }
+p { margin: 6px 0 0; color: #62594D; font-size: 15px; }
+section { background: #FBF8F1; border: 1px solid #D9D0BD; border-radius: 16px; padding: 24px; }
+button, .btn { height: 48px; padding: 0 22px; border: none; border-radius: 10px; background: #A8461F; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 14px; }
+textarea { width: 100%; min-height: 140px; margin-top: 14px; padding: 12px 14px; border: 1px solid #CFC5B0; border-radius: 10px; background: #FFFEFA; color: #211E1A; font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+a { color: #A8461F; font-weight: 600; }
+#msg { min-height: 24px; font-weight: 600; color: #3B6644; }
+#msg.err { color: #A8461F; }
+button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid #211E1A; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+<div>
+<h1>Backup</h1>
+<p>Your planner is saved in this browser on this device. Use this page to make a backup file, or to bring data in from another device or from the original Claude artifact. <a href="./index.html">Back to the planner</a></p>
+</div>
+<div id="msg" role="status" aria-live="polite"></div>
+<section>
+<h2>Export</h2>
+<p>Downloads everything in this planner (to-dos, ideas, routines and routine history) as one file.</p>
+<button type="button" id="export">Download backup</button>
+</section>
+<section>
+<h2>Import</h2>
+<p>Choose a backup file, or paste the data below. This replaces what is currently saved in this planner on this device.</p>
+<input type="file" id="file" accept=".json,application/json" style="margin-top: 14px;">
+<textarea id="text" placeholder="Paste the backup data here" aria-label="Backup data"></textarea>
+<button type="button" id="import">Import and replace</button>
+</section>
+</main>
+<script>
+(function () {
+  var KEY = 'daily-planner-v1';
+  var msg = document.getElementById('msg');
+  function say(t, err) { msg.textContent = t; msg.className = err ? 'err' : ''; }
+
+  document.getElementById('export').onclick = function () {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
+    if (!raw) { say('Nothing is saved in this planner yet.', true); return; }
+    var d = new Date();
+    var stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    a.download = 'daily-planner-backup-' + stamp + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    say('Backup downloaded.');
+  };
+
+  document.getElementById('file').onchange = function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { document.getElementById('text').value = String(r.result || ''); say('File loaded. Press "Import and replace" to save it.'); };
+    r.readAsText(f);
+  };
+
+  document.getElementById('import').onclick = function () {
+    var raw = document.getElementById('text').value.trim();
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { say('That is not valid backup data.', true); return; }
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.ideas) || !Array.isArray(data.checklist)) {
+      say('That does not look like Daily Planner data.', true); return;
+    }
+    if (!window.confirm('Replace what is saved in this planner on this device with this backup?')) return;
+    try { localStorage.setItem(KEY, JSON.stringify(data)); say('Imported. Open the planner to see it.'); }
+    catch (e) { say('Could not save: this browser is blocking storage.', true); }
+  };
+})();
+</script>
+</body>
+</html>
